@@ -1,0 +1,5 @@
+<decoder name="lab5-scenario">
+  <prematch>LAB5</prematch>
+  <regex>srcip=(\S+)</regex>
+  <order>srcip</order>
+</decoder>

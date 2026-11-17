@@ -1,0 +1,5 @@
+{"scenario":"ssh_bruteforce","src":"192.0.2.44","dst":"192.0.2.10","evidence":"LAB5 scenario=ssh_bruteforce srcip=192.0.2.44 dstip=192.0.2.10 failures=12 service=sshd"}
+{"scenario":"port_sweep","src":"192.0.2.45","dst":"192.0.2.10","evidence":"LAB5 scenario=port_sweep srcip=192.0.2.45 dstip=192.0.2.10 ports=21,22,23,80,443,445,3389"}
+{"scenario":"path_traversal","src":"192.0.2.46","dst":"192.0.2.20","evidence":"LAB5 scenario=path_traversal srcip=192.0.2.46 dstip=192.0.2.20 request=GET /download?file=..%2F..%2Fetc%2Fpasswd"}
+{"scenario":"sqli_probe","src":"192.0.2.47","dst":"192.0.2.20","evidence":"LAB5 scenario=sqli_probe srcip=192.0.2.47 dstip=192.0.2.20 request=GET /login?user=admin%27%20OR%201%3D1"}
+{"scenario":"dns_tunnel_indicator","src":"192.0.2.48","dst":"192.0.2.53","evidence":"LAB5 scenario=dns_tunnel_indicator srcip=192.0.2.48 dstip=192.0.2.53 qname=YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo0123456789.attacker.invalid qtype=TXT"}

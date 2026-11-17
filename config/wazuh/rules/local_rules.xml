@@ -1,0 +1,46 @@
+<group name="lab5,network,anomaly_detection,">
+  <rule id="100501" level="10">
+    <match>LAB5 scenario=ssh_bruteforce</match>
+    <description>LAB5: SSH password guessing pattern</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>authentication_failures,attack,</group>
+  </rule>
+
+  <rule id="100502" level="8">
+    <match>LAB5 scenario=port_sweep</match>
+    <description>LAB5: Port sweep / service reconnaissance</description>
+    <mitre>
+      <id>T1046</id>
+    </mitre>
+    <group>reconnaissance,attack,</group>
+  </rule>
+
+  <rule id="100503" level="10">
+    <match>LAB5 scenario=path_traversal</match>
+    <description>LAB5: Web path traversal probe</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>web,attack,</group>
+  </rule>
+
+  <rule id="100504" level="10">
+    <match>LAB5 scenario=sqli_probe</match>
+    <description>LAB5: SQL injection probe</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>web,attack,</group>
+  </rule>
+
+  <rule id="100505" level="8">
+    <match>LAB5 scenario=dns_tunnel_indicator</match>
+    <description>LAB5: Long DNS label tunnel indicator</description>
+    <mitre>
+      <id>T1048</id>
+    </mitre>
+    <group>dns,exfiltration,attack,</group>
+  </rule>
+</group>

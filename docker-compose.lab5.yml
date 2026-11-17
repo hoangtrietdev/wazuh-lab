@@ -1,0 +1,46 @@
+services:
+  wazuh.manager:
+    volumes:
+      - ../../../config/wazuh/rules/local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
+      - ../../../config/wazuh/decoders/local_decoder.xml:/var/ossec/etc/decoders/local_decoder.xml:ro
+
+  syslog-ng:
+    image: balabit/syslog-ng:4.8.2
+    container_name: lab5-syslog-ng
+    restart: unless-stopped
+    ports:
+      - "5514:5514/udp"
+    volumes:
+      - ../../../config/syslog-ng/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+    depends_on:
+      - wazuh.manager
+
+  alert-notifier:
+    image: python:3.12-alpine
+    container_name: lab5-alert-notifier
+    restart: unless-stopped
+    command: ["python3", "/app/notify_alerts.py"]
+    environment:
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
+      ALERT_FROM: ${ALERT_FROM:-lab5@esigelec.example}
+      ALERT_TO: ${ALERT_TO:-phu.hoang.triet.ngo@esigelec.example}
+    volumes:
+      - wazuh_logs:/var/ossec/logs:ro
+      - ../../../scripts/notify_alerts.py:/app/notify_alerts.py:ro
+    depends_on:
+      - wazuh.manager
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: lab5-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+
+volumes:
+  wazuh_logs: {}
