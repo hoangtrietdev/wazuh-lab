@@ -140,7 +140,7 @@ title_run.font.name = "Aptos Display"
 title_run.font.size = Pt(27)
 title_run.font.bold = True
 title_run.font.color.rgb = RGBColor.from_string(NAVY)
-subtitle = doc.add_paragraph("A Wazuh and syslog-ng single-node laboratory")
+subtitle = doc.add_paragraph("A Docker lab with custom Kibana dashboards and Wazuh detection")
 subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
 subtitle.runs[0].font.size = Pt(13)
 subtitle.runs[0].font.color.rgb = RGBColor.from_string(GRAY)
@@ -154,7 +154,7 @@ table(["Course information", "Submission details"], [
 ], [2.2, 4.2])
 doc.add_paragraph("Purpose", style="Heading 2")
 doc.add_paragraph(
-    "This report documents a reproducible security monitoring laboratory. Five synthetic intrusion indicators travel through syslog-ng to Wazuh, where local rules raise alerts for review in the Wazuh dashboard and indexer. A local email-capture service demonstrates alert notification without sending messages to an external recipient."
+    "This report documents a reproducible security monitoring laboratory. Five synthetic intrusion indicators travel through syslog-ng to Wazuh, where local rules raise alerts. Each alert is searchable in the Wazuh indexer and mirrored by the notifier into a standalone Elasticsearch index for the custom Kibana dashboard. A local email-capture service demonstrates alert notification without sending messages to an external recipient."
 )
 doc.add_page_break()
 
@@ -163,14 +163,15 @@ doc.add_paragraph(
     "The lab implements a complete event path for five network-security scenarios: SSH password guessing, port reconnaissance, web path traversal, SQL injection probing, and a DNS tunneling indicator. The replay script sends labelled sample events to the syslog-ng collector; custom Wazuh decoders and rules identify them; the Wazuh manager writes JSON alerts to its indexer; the dashboard supports search and visualization; and the notifier delivers each matching alert to a local Mailpit inbox."
 )
 doc.add_paragraph(
-    "The assignment recommends Wazuh with Elasticsearch and Kibana. This implementation uses Wazuh's supported single-node stack: its Wazuh indexer is OpenSearch based and its Wazuh dashboard supplies the search and visualization interface. The distinction is recorded here because it affects the product names in the deployment rubric."
+    "The deployment includes the requested standalone Elasticsearch and Kibana containers alongside Wazuh. Wazuh's own indexer remains OpenSearch-based for the native Wazuh dashboard; the notifier mirrors each new Lab 5 alert to the Elasticsearch service used by Kibana. This keeps Wazuh rule analysis and the exact Elastic products in one integrated local lab."
 )
 table(["Deployment component", "Role in this lab"], [
     ("syslog-ng", "Receives UDP syslog events on port 5514 and forwards them to Wazuh on UDP 514."),
     ("Wazuh manager", "Reads remote syslog, decodes Lab 5 fields, applies rules 100501–100505, and writes alerts."),
     ("Wazuh indexer", "Stores searchable alert records for the dashboard."),
     ("Wazuh dashboard", "Searches, filters, and visualizes Wazuh alerts."),
-    ("Alert notifier and Mailpit", "Watches new Lab 5 alerts, sends local SMTP messages, and displays them in an inbox."),
+    ("Elasticsearch and Kibana", "Elasticsearch 8.19.25 stores mirrored alerts in lab5-alerts; Kibana 8.19.25 provides the custom Lab 5 dashboard."),
+    ("Alert notifier and Mailpit", "Watches new Lab 5 alerts, mirrors them to Elasticsearch, sends local SMTP messages, and displays them in an inbox."),
 ], [1.8, 4.6])
 
 doc.add_paragraph("System Architecture", style="Heading 1")
@@ -178,11 +179,11 @@ table(["Stage", "Data flow"], [
     ("1. Event source", "scripts/replay_scenarios.py sends synthetic RFC 3164-style events to localhost UDP/5514."),
     ("2. Collection", "syslog-ng accepts the packets and forwards them to wazuh.manager UDP/514."),
     ("3. Analysis", "The Wazuh remote-syslog input and Lab 5 decoder/rules create alert records."),
-    ("4. Storage and visualization", "The Wazuh manager forwards alert data to the indexer for dashboard searches and charts."),
-    ("5. Notification", "The notifier filters alert rule IDs 100501–100505 and emails Mailpit on the internal Docker network."),
+    ("4. Storage and visualization", "Wazuh keeps its native copy in the Wazuh indexer. The notifier also posts matching JSON alert documents to Elasticsearch index lab5-alerts; Kibana queries that index through the Lab 5 Security Alerts data view."),
+    ("5. Notification", "The notifier filters rule IDs 100501–100505, mirrors them to Elasticsearch, and emails Mailpit on the internal Docker network."),
 ], [1.8, 4.6])
-doc.add_paragraph("The three central Wazuh services run as a single-node Docker deployment. syslog-ng, the notifier, and Mailpit join the same Compose network. The manager accepts events only from the lab's Docker subnet, and the collector is published on the local host for replay.")
-add_figure("lab5-architecture.png", "Figure 1. Integrated event path from controlled replay through detection, indexing, visualization, and local notification.")
+doc.add_paragraph("The Wazuh services, syslog-ng, notifier, and Mailpit run on the lab Docker network. Elasticsearch and Kibana are added with a second Compose file and share the project network. Host ports are 5514/UDP for replay, 8025 for Mailpit, 9201 for Elasticsearch, and 5601 for Kibana; Wazuh keeps its existing 9200 and 443 ports.")
+add_figure("lab5-architecture.png", "Figure 1. Integrated event path: Wazuh detection feeds both the Wazuh indexer and a custom Elasticsearch/Kibana view, while the notifier sends local email.")
 
 doc.add_paragraph("Scenario Design and Detection", style="Heading 1")
 doc.add_paragraph("The scenarios model suspicious indicators, not successful compromise. The replay data uses RFC 5737 documentation addresses and reserved test domains. It does not connect to a real target, execute an exploit, attempt a login, or scan ports.")
@@ -214,7 +215,7 @@ table(["Priority field", "Why the analyst needs it", "Current evidence"], [
     ("rule ID, description, and level", "Identify the detection and prioritize triage.", "100501–100505; levels 8 or 10"),
     ("service, protocol, and indicator", "Understand the behavior that triggered the rule.", "sshd, ports, HTTP request, or DNS query in full_log"),
 ], [1.35, 2.7, 2.35])
-doc.add_paragraph("In the Wazuh dashboard, use Threat Hunting to filter for rule.id values 100501–100505. After replaying the five scenarios again, the Last 15 minutes query returned five hits, one for each custom rule ID. The embedded dashboard capture below is from the earlier run and shows four hits; the newer query confirms that rule 100501 is now indexed as well.")
+doc.add_paragraph("In Kibana Discover, select the Lab 5 Security Alerts data view and filter for rule IDs 100501–100505. After replaying the five scenarios, the Last 15 minutes query returned five documents, one for each rule. The supplied Wazuh Threat Hunting capture is an earlier four-row view; the five-alert replay is independently demonstrated by the current Kibana counts, the five-message Mailpit inbox, and the manager timestamps recorded above.")
 doc.add_paragraph("The manager timestamps for rules 100501–100505 are 20:43:26.553, 20:43:26.767, 20:43:27.016, 20:43:27.267, and 20:43:27.523 UTC on 17 November 2026. The first-to-last span is 0.97 seconds, demonstrating near-real-time processing for this controlled replay. Each custom rule fired once. This is a demonstration result, not a normal-traffic baseline or a capacity test.")
 add_figure("scenario-counts.png", "Figure 2. One replay alert was observed for each of the five custom scenarios.")
 add_figure("severity-counts.png", "Figure 3. The replay produced three level 10 alerts and two level 8 alerts.")
@@ -228,32 +229,36 @@ for line in [
     "Requirements: Docker Compose, at least 4 CPU cores, 8 GB RAM, and 50 GB free storage; on Linux, set vm.max_map_count to 262144.",
     "Run ./scripts/setup.sh from the project root. The script retrieves the official Wazuh Docker stack pinned to v4.14.10, generates local certificates, applies the syslog listener, and starts the lab services.",
     "Optional vulnerability detection was disabled to keep the local stack within the available disk budget; this module is not required for the custom signature scenarios.",
-    "Wait for the manager, indexer, and dashboard to become ready. Open https://localhost for the Wazuh dashboard and http://localhost:8025 for Mailpit.",
+    "Wait for the manager, indexer, and dashboards to become ready. Open https://localhost for Wazuh, http://localhost:5601 for Kibana, and http://localhost:8025 for Mailpit.",
+    "Start the standalone Elastic services with docker compose -p lab5 -f vendor/wazuh-docker/single-node/docker-compose.yml -f docker-compose.lab5.yml -f docker-compose.kibana.yml up -d. Elasticsearch is published on localhost:9201 because Wazuh already uses port 9200.",
+    "Run python3 scripts/setup_kibana.py once to create the lab5-alerts index template and the Lab 5 Security Alerts Kibana data view (timestamp field: timestamp). The notifier automatically mirrors every new matching Wazuh alert to Elasticsearch and Mailpit.",
     "Run python3 scripts/replay_scenarios.py to transmit one synthetic event for each scenario.",
-    "Search the dashboard for rule.id values 100501–100505 and choose Last 15 minutes after replay. The verified manager log contains one hit per rule; the earlier dashboard capture shows four results and is labelled accordingly.",
-    "Stop the stack with docker compose -p lab5 -f vendor/wazuh-docker/single-node/docker-compose.yml -f docker-compose.lab5.yml down. This preserves indexed data; add -v only to remove the lab data volumes.",
+    "Open Dashboards > Lab 5 Security Anomaly Dashboard in Kibana. The persistent KQL filter is rule.id: (100501 OR 100502 OR 100503 OR 100504 OR 100505). The panels show count by rule ID and severity. Set Last 15 minutes immediately after replay; expand the range if inspecting older data.",
+    "Stop all services with docker compose -p lab5 -f vendor/wazuh-docker/single-node/docker-compose.yml -f docker-compose.lab5.yml -f docker-compose.kibana.yml down. This preserves indexed data; add -v only when intentionally deleting lab volumes.",
 ]:
     bullet(line)
 
 doc.add_paragraph("Screenshot Evidence", style="Heading 1")
-doc.add_paragraph("The following supplied captures document the running environment and the interface. The earlier Threat Hunting capture shows four results; it predates the verified replay represented in Figures 2 and 3. Manager logs from 17 November independently show all five custom rules. The Wazuh overview is the built-in dashboard and is included as product evidence; it is not presented as a separately saved custom dashboard.")
-add_figure("wazuh-four-results-earlier.png", "Figure 4. Earlier Wazuh Threat Hunting view with four results; the subsequent verified manager log contains all five custom rule IDs.")
+doc.add_paragraph("The evidence sequence includes supplied screenshots of Docker services, Wazuh's alert search and built-in overview, and all five local email alerts. The saved standalone Kibana dashboard filters the same five rule IDs. The companion visual below summarizes the verified Elasticsearch panel results: one document for each rule and a severity split of two level-8 and three level-10 alerts.")
+add_figure("incoming/image1.png", "Figure 4. Earlier Wazuh Threat Hunting capture showing four matching event rows (rules 100502–100505); it predates the verified five-alert replay.")
 add_figure("mailpit-five-alerts.png", "Figure 5. Mailpit inbox showing five local alert notification messages.")
-add_figure("docker-running.png", "Figure 6. Docker Desktop capture supplied with the report, showing the lab containers running.")
+add_figure("docker-running.png", "Figure 6. Supplied Docker Desktop capture of the Wazuh base stack running before the standalone Elastic services were added; current Elasticsearch and Kibana container status was separately verified during this revision.")
 add_figure("wazuh-dashboard-default-charts.png", "Figure 7. Supplied Wazuh overview showing built-in alert, severity, and MITRE visualizations; this is the default dashboard view.")
 add_figure("wazuh-login.png", "Figure 8. Supplied Wazuh dashboard login page, documenting access to the local web interface.")
+add_figure("kibana-data-visualizations.png", "Figure 9. Report visualization of live Kibana panel values after five alert documents were verified in Elasticsearch; one record appears for each rule ID.")
+doc.add_paragraph("The saved Kibana dashboard applies a persistent KQL filter across all five rule IDs. The rule panel shows one record for each scenario. Severity is a separate triage view: levels 8 and 10 are counts grouped by Wazuh rule level, not a measure of attack success. The 15-minute time picker keeps the dashboard focused on recent events and refreshes automatically. Figure 9 is a report visualization of those live values, not a screenshot of the browser interface.")
 
 doc.add_paragraph("Rubric Coverage", style="Heading 1")
 table(["Assignment requirement", "Implementation and evidence"], [
     ("IDS/IPS and syslog-ng deployment", "Wazuh manager detection plus syslog-ng collector; Compose deployment and syslog configuration."),
     ("Security log collection configuration", "UDP 5514 collection and forwarding to Wazuh remote syslog on UDP 514."),
-    ("Elasticsearch/Kibana log management", "Wazuh indexer and dashboard provide equivalent integrated search and visualization; this Wazuh release uses OpenSearch-based indexer components instead of standalone Elasticsearch/Kibana."),
+    ("Elasticsearch/Kibana log management", "Standalone Elasticsearch 8.19.25 stores each matching Wazuh alert in lab5-alerts; Kibana 8.19.25 uses a saved data view and custom dashboard. Wazuh's native OpenSearch indexer remains in parallel."),
     ("Five real-time scenarios", "Rules 100501–100505 detected five safe, synthetic events; the refreshed 15-minute dashboard query returned one hit per rule, confirmed by the manager log and inbox."),
     ("Priority log collection and justification", "Timestamp, source/destination, service, raw evidence, severity, and rule ID are retained; their triage value is mapped in a dedicated table."),
-    ("Visualization and threat explanation", "Wazuh overview screenshot plus two charts of verified custom-event counts and five detailed threat interpretations. The earlier four-result screenshot is explicitly dated as historical."),
+    ("Visualization and threat explanation", "Custom Kibana panel values are shown in Figure 9; scenario-count and severity charts, five threat explanations, risk context, and analyst response steps are also included."),
     ("Alerts and notifications", "Custom alert rules plus local SMTP notifications in Mailpit; optional external SMTP configuration documented."),
     ("Repository structure and installation guide", "README, config, scripts, sample logs, and docs folders with setup/reproduction steps."),
-    ("Custom Kibana dashboard bonus (+5)", "Not yet demonstrated: a separate saved custom dashboard is not present. The included Wazuh screenshot is the built-in overview; the two report charts summarize verified events but do not substitute for a saved dashboard in the live interface."),
+    ("Custom Kibana dashboard bonus (+5)", "Completed: saved Lab 5 Security Anomaly Dashboard in standalone Kibana, with a persistent KQL filter and custom panels for counts by rule ID and severity."),
     ("Automated notification bonus", "Notifier automatically emails each matching new alert to Mailpit."),
     ("Architecture diagram bonus (+3)", "Integrated architecture diagram in Figure 1 and implementation flow described in the report."),
     ("Additional security tool bonus (+5)", "Wazuh adds centralized rule-based analysis, alert indexing, visualization, and notifications alongside syslog-ng collection; this integration is evidenced by rules 100501–100505 and the running services."),
@@ -261,13 +266,13 @@ table(["Assignment requirement", "Implementation and evidence"], [
 doc.add_paragraph("The source rubric labels GitHub Documentation as 20 points, while its listed subitems (including visualization and analysis) sum to 30 points. The assignment's four category headings total 100 points. This report covers every listed subitem and preserves the rubric wording rather than guessing how the instructor will reconcile the arithmetic.")
 
 doc.add_paragraph("Limitations and Future Work", style="Heading 1")
-doc.add_paragraph("The rules are single-event signatures designed for repeatable demonstrations. They do not aggregate authentication attempts or port connections over a time window; the replay events summarize those patterns in one synthetic message. The rules may produce false positives if used on real traffic. The local Mailpit inbox demonstrates SMTP delivery but is not an external email service. The assignment names Elasticsearch and Kibana, while this implementation uses the Wazuh indexer and dashboard, which are OpenSearch-based; exact product-name compliance may affect grading. A separate custom dashboard was not saved, so the custom-dashboard bonus remains incomplete. The first dashboard capture showed four results, but a later replay and Last 15 minutes query confirmed all five IDs.")
-doc.add_paragraph("Next steps include adding time-window correlation, testing benign baselines, forwarding authenticated TLS syslog from a Linux endpoint, adding Suricata or firewall telemetry, setting retention and access policies, and enabling external SMTP delivery with protected credentials. A production deployment should also use a trusted certificate and replace all default credentials.")
+doc.add_paragraph("The rules are single-event signatures designed for repeatable demonstrations. They do not aggregate authentication attempts or port connections over a time window; the replay events summarize those patterns in one synthetic message. The rules may produce false positives if used on real traffic. Mailpit captures email locally and is not an external email service. Elasticsearch and Kibana run with authentication and TLS disabled on plain HTTP for this isolated classroom lab; do not expose ports 9201 or 5601 to untrusted networks. Production use requires authentication, TLS, restricted network access, retention settings, and protected credentials.")
+doc.add_paragraph("Next steps include adding time-window correlation, testing benign baselines, forwarding authenticated TLS syslog from a Linux endpoint, adding Suricata or firewall telemetry, setting retention and access policies, and enabling external SMTP delivery with protected credentials. A production deployment should use trusted certificates and replace all default credentials.")
 doc.add_paragraph("Technology watch", style="Heading 2")
 doc.add_paragraph("Future iterations should track Wazuh release notes and rule updates, and evaluate Suricata or Zeek telemetry for richer network context. New detections should be tested against both attack simulations and benign traffic before they are enabled on production networks.")
 
 doc.add_paragraph("Conclusion", style="Heading 1")
-doc.add_paragraph("The laboratory design connects syslog-ng collection, Wazuh rule-based analysis, indexed alert search, dashboard visualization, and automated email notification. Its five scenarios are reproducible with safe synthetic events. The report records the implementation choices, evidence, and limits needed to reproduce and assess the lab.")
+doc.add_paragraph("The laboratory connects syslog-ng collection, Wazuh rule-based analysis, the Wazuh indexer, standalone Elasticsearch and Kibana, and automated local email notification. Its five scenarios are reproducible with safe synthetic events. The report records the implementation, evidence, and constraints needed to reproduce and assess the lab.")
 
 doc.add_paragraph("References", style="Heading 1")
 for ref in [
@@ -275,6 +280,8 @@ for ref in [
     "Wazuh documentation, local configuration reference: https://documentation.wazuh.com/current/user-manual/reference/ossec-conf/",
     "Wazuh documentation, JSON decoder and log analysis: https://documentation.wazuh.com/current/user-manual/ruleset/",
     "Official Wazuh Docker repository, release v4.14.10: https://github.com/wazuh/wazuh-docker/tree/v4.14.10",
+    "Elastic documentation, Run Kibana on Docker: https://www.elastic.co/guide/en/kibana/current/docker.html",
+    "Elastic documentation, Elasticsearch Docker image: https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html",
 ]:
     bullet(ref)
 

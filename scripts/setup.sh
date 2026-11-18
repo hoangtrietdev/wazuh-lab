@@ -32,7 +32,8 @@ if [ ! -f config/wazuh_indexer_ssl_certs/root-ca-manager.pem ]; then
   exit 1
 fi
 cd "$ROOT"
-docker compose -p lab5 -f vendor/wazuh-docker/single-node/docker-compose.yml -f docker-compose.lab5.yml up -d
+docker compose -p lab5 -f vendor/wazuh-docker/single-node/docker-compose.yml -f docker-compose.lab5.yml -f docker-compose.kibana.yml up -d
 
-echo "Lab stack started. Dashboard: https://localhost (admin / SecretPassword)"
+echo "Lab stack started. Wazuh dashboard: https://localhost; Kibana: http://localhost:5601"
 echo "Replay the five synthetic scenarios with: python3 scripts/replay_scenarios.py"
+echo "Configure the Kibana data view with: python3 scripts/setup_kibana.py"

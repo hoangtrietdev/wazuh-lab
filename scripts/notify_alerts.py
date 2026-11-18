@@ -4,6 +4,8 @@ import json
 import os
 import smtplib
 import time
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -18,18 +20,33 @@ def notify(alert):
     sender, recipient = os.getenv("ALERT_FROM"), os.getenv("ALERT_TO")
     if not (host and sender and recipient):
         print(f"DETECTED (email not configured): {title}", flush=True)
-        return
-    message = EmailMessage()
-    message["Subject"], message["From"], message["To"] = title, sender, recipient
-    message.set_content(body)
-    with smtplib.SMTP(host, int(os.getenv("SMTP_PORT", "587")), timeout=15) as smtp:
-        if os.getenv("SMTP_USE_TLS", "true").lower() in {"1", "true", "yes"}:
-            smtp.starttls()
-        user, password = os.getenv("SMTP_USER"), os.getenv("SMTP_PASSWORD")
-        if user and password:
-            smtp.login(user, password)
-        smtp.send_message(message)
-    print(f"Email sent: {title}", flush=True)
+    else:
+        message = EmailMessage()
+        message["Subject"], message["From"], message["To"] = title, sender, recipient
+        message.set_content(body)
+        with smtplib.SMTP(host, int(os.getenv("SMTP_PORT", "587")), timeout=15) as smtp:
+            if os.getenv("SMTP_USE_TLS", "true").lower() in {"1", "true", "yes"}:
+                smtp.starttls()
+            user, password = os.getenv("SMTP_USER"), os.getenv("SMTP_PASSWORD")
+            if user and password:
+                smtp.login(user, password)
+            smtp.send_message(message)
+        print(f"Email sent: {title}", flush=True)
+
+    # Mirror the same detected alert into Elasticsearch for the custom Kibana view.
+    elasticsearch = os.getenv("ELASTICSEARCH_URL")
+    if elasticsearch:
+        request = urllib.request.Request(
+            f"{elasticsearch.rstrip('/')}/lab5-alerts/_doc",
+            data=json.dumps(alert, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                print(f"Indexed alert in Elasticsearch: {response.status}", flush=True)
+        except (urllib.error.URLError, TimeoutError) as error:
+            print(f"Elasticsearch indexing failed: {error}", flush=True)
 
 while not LOG.exists():
     time.sleep(2)
